@@ -11,7 +11,6 @@ const {
 let testUser;
 let testUserAuthToken;
 let testUserId;
-let authRequest;
 // Admin variables
 let adminRes;
 let newFranchise;
@@ -29,7 +28,6 @@ beforeAll(async () => {
     testUser = userSetup.user;
     testUserAuthToken = userSetup.token;
     testUserId = userSetup.userId;
-    authRequest = authenticatedRequest(app, testUserAuthToken);
   } catch (error) {
     console.error("Setup failed:", error);
   }
@@ -76,6 +74,7 @@ describe("Auth tests", () => {
 
     const { password, ...user } = { ...testUser, roles: [{ role: "diner" }] };
     expect(loginRes.body.user).toMatchObject(user);
+    user.password = password;
   });
 
   test("registerNewUser", async () => {
@@ -242,7 +241,7 @@ describe("Order tests", () => {
   test("create order", async () => {
     // First, get the menu to see what items are available
     const menuRes = await request(app).get("/api/order/menu");
-    const menuItems = menuRes.body;
+    let menuItems = menuRes.body;
 
     // Make sure we have at least one menu item
     if (menuItems.length === 0) {
