@@ -8,7 +8,13 @@ function randomName() {
 
 // Abstract user registration function
 async function registerUser(app, userData = {}) {
-  const user = { ...userData };
+  // Ensure required fields have defaults
+  const user = {
+    name: "pizza diner",
+    email: `${randomName()}@test.com`,
+    password: "a",
+    ...userData, // This allows overriding the defaults
+  };
 
   const response = await request(app).post("/api/auth").send(user);
 
@@ -16,9 +22,11 @@ async function registerUser(app, userData = {}) {
     throw new Error(`Failed to register user: ${response.body.message}`);
   }
 
+  response.body.user.password = user.password;
+
   return {
     response,
-    user,
+    user: response.body.user, // Return the user from the response, not the input
     token: response.body.token,
     userId: response.body.user?.id,
   };

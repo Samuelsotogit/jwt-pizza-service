@@ -138,6 +138,50 @@ describe("User tests", () => {
     expect(res.body.user).toHaveProperty("email", userData.email);
     expect(res.body).toHaveProperty("token");
   });
+
+  test("list users unauthorized", async () => {
+    const listUsersRes = await request(app).get("/api/user");
+    expect(listUsersRes.status).toBe(401);
+  });
+
+  test("list users", async () => {
+    // Use admin token instead of regular user token
+    const listUsersRes = await request(app)
+      .get("/api/user")
+      .set("Authorization", "Bearer " + adminLoginRes.body.token); // Use admin token
+
+    expect(listUsersRes.status).toBe(200);
+
+    // Validate the response structure that matches your UserList type
+    expect(listUsersRes.body).toHaveProperty("users");
+    expect(Array.isArray(listUsersRes.body.users)).toBe(true);
+
+    // Check for the flat pagination properties (not nested in pagination object)
+    expect(listUsersRes.body).toHaveProperty("page");
+    expect(listUsersRes.body).toHaveProperty("total");
+    expect(typeof listUsersRes.body.page).toBe("number");
+    expect(typeof listUsersRes.body.total).toBe("number");
+
+    // Test individual user structure if any users exist
+    if (listUsersRes.body.users.length > 0) {
+      const user = listUsersRes.body.users[0];
+      expect(user).toHaveProperty("id");
+      expect(user).toHaveProperty("name");
+      expect(user).toHaveProperty("email");
+      expect(user).toHaveProperty("roles");
+      expect(Array.isArray(user.roles)).toBe(true);
+    }
+  });
+
+  test("delete user - admin success", async () => {
+    const { userId } = await registerUser(app);
+
+    const deleteRes = await request(app)
+      .delete(`/api/user/${userId}`)
+      .set("Authorization", "Bearer " + adminLoginRes.body.token);
+
+    expect(deleteRes.status).toBe(204);
+  });
 });
 
 // Franchise tests (use beforeEach for fresh admin tokens)

@@ -107,6 +107,118 @@ class DB {
     }
   }
 
+  async getUsers(page = 0, limit = 10, nameFilter = "*") {
+    const connection = await this.getConnection();
+
+    const offset = page * limit;
+    nameFilter = nameFilter.replace(/\*/g, "%");
+
+    try {
+      // Get users with pagination and name filtering
+      let users = await this.query(
+        connection,
+        `SELECT u.id, u.name, u.email FROM user u WHERE u.name LIKE ? LIMIT ${
+          limit + 1
+        } OFFSET ${offset}`,
+        [nameFilter]
+      );
+
+      const hasMore = users.length > limit;
+      if (hasMore) {
+        users = users.slice(0, limit);
+      }
+
+      // Get roles for each user
+      for (const user of users) {
+        const roleResult = await this.query(
+          connection,
+          `SELECT role, objectId FROM userRole WHERE userId=?`,
+          [user.id]
+        );
+
+        user.roles = roleResult.map((r) => ({
+          objectId: r.objectId || undefined,
+          role: r.role,
+        }));
+      }
+
+      return [users, hasMore];
+    } finally {
+      connection.end();
+    }
+  }
+
+  async getUserCount(nameFilter = "*") {
+    const connection = await this.getConnection();
+    nameFilter = nameFilter.replace(/\*/g, "%");
+
+    try {
+      const countResult = await this.query(
+        connection,
+        `SELECT COUNT(*) as total FROM user WHERE name LIKE ?`,
+        [nameFilter]
+      );
+      return countResult[0].total;
+    } finally {
+      connection.end();
+    }
+  }
+
+  async deleteUser(userId) {
+    const connection = await this.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      try {
+        // First check if user exists
+        const userExists = await this.query(
+          connection,
+          `SELECT id FROM user WHERE id=?`,
+          [userId]
+        );
+
+        if (userExists.length === 0) {
+          throw new StatusCodeError("User not found", 404);
+        }
+
+        // Delete user roles first (foreign key constraint)
+        await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
+          userId,
+        ]);
+
+        // Delete from auth table if exists
+        await this.query(connection, `DELETE FROM auth WHERE userId=?`, [
+          userId,
+        ]);
+
+        // Delete any orders associated with the user
+        await this.query(connection, `DELETE FROM dinerOrder WHERE dinerId=?`, [
+          userId,
+        ]);
+
+        // Finally delete the user
+        const result = await this.query(
+          connection,
+          `DELETE FROM user WHERE id=?`,
+          [userId]
+        );
+
+        if (result.affectedRows === 0) {
+          throw new StatusCodeError("User not found", 404);
+        }
+
+        await connection.commit();
+        return { message: "User deleted successfully" };
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      }
+    } finally {
+      connection.end();
+    }
+  }
+
   async updateUser(userId, name, email, password) {
     const connection = await this.getConnection();
     try {
