@@ -60,7 +60,6 @@ userRouter.docs = [
     example: `curl -X DELETE localhost:3000/api/user/1 -H 'Authorization: Bearer tttttt'`,
     response: "204 No Content",
   },
-  ,
 ];
 
 // getUser
@@ -103,7 +102,8 @@ userRouter.get(
     const limit = parseInt(req.query.limit) || 10;
     const nameFilter = req.query.name || "*";
 
-    const [users, hasMore] = await DB.getUsers(page, limit, nameFilter);
+    const [users] = await DB.getUsers(page, limit, nameFilter);
+    // const [users, hasMore] = await DB.getUsers(page, limit, nameFilter);
 
     // Get total count for frontend pagination
     const total = await DB.getUserCount(nameFilter);
