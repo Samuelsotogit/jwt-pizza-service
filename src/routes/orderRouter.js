@@ -5,6 +5,7 @@ const { authRouter } = require("./authRouter.js");
 const { asyncHandler, StatusCodeError } = require("../endpointHelper.js");
 
 const orderRouter = express.Router();
+const metrics = require("../metrics");
 
 orderRouter.docs = [
   {
@@ -113,29 +114,49 @@ orderRouter.post(
   "/",
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
+    const start = Date.now();
     const orderReq = req.body;
-    const order = await DB.addDinerOrder(req.user, orderReq);
-    const r = await fetch(`${config.factory.url}/api/order`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: `Bearer ${config.factory.apiKey}`,
-      },
-      body: JSON.stringify({
-        diner: { id: req.user.id, name: req.user.name, email: req.user.email },
-        order,
-      }),
-    });
-    const j = await r.json();
-    if (r.ok) {
-      res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
-    } else {
-      res
-        .status(500)
-        .send({
+
+    try {
+      const order = await DB.addDinerOrder(req.user, orderReq);
+      const r = await fetch(`${config.factory.url}/api/order`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${config.factory.apiKey}`,
+        },
+        body: JSON.stringify({
+          diner: {
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+          },
+          order,
+        }),
+      });
+      const j = await r.json();
+
+      const latency = Date.now() - start;
+      metrics.recordPizzaLatency(latency);
+
+      if (r.ok) {
+        console.log(
+          `[ORDER ROUTER] ✅ Pizza order successful for diner ${req.user.email}`
+        );
+        metrics.recordPizzaSale(order);
+        res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
+      } else {
+        console.log(`[ORDER ROUTER] ❌ Factory rejected order: ${r.status}`);
+        metrics.recordPizzaFailure();
+        res.status(500).send({
           message: "Failed to fulfill order at factory",
           followLinkToEndChaos: j.reportUrl,
         });
+      }
+    } catch (err) {
+      metrics.recordPizzaFailure();
+      metrics.recordPizzaLatency(Date.now() - start);
+      throw err;
     }
   })
 );
