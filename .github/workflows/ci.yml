@@ -39,7 +39,7 @@ jobs:
 
       - name: Write config file
         run: |
-          cat <<EOF > src/config.js
+          cat > src/config.js <<'EOF'
           module.exports = {
             jwtSecret: '${{ secrets.JWT_SECRET }}',
             db: {
