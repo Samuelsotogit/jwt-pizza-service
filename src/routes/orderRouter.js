@@ -140,13 +140,13 @@ orderRouter.post(
       metrics.recordPizzaLatency(latency);
 
       if (r.ok) {
-        console.log(
-          `[ORDER ROUTER] ✅ Pizza order successful for diner ${req.user.email}`
-        );
+        // console.log(
+        //   // `[ORDER ROUTER] ✅ Pizza order successful for diner ${req.user.email}`
+        // );
         metrics.recordPizzaSale(order);
         res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
       } else {
-        console.log(`[ORDER ROUTER] ❌ Factory rejected order: ${r.status}`);
+        // console.log(`[ORDER ROUTER] ❌ Factory rejected order: ${r.status}`);
         metrics.recordPizzaFailure();
         res.status(500).send({
           message: "Failed to fulfill order at factory",

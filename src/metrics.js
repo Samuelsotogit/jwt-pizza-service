@@ -176,10 +176,10 @@ function sendMetricToGrafana(
 
 // --- Periodically push metrics ---
 setInterval(async () => {
-  console.log("Pushing metrics to Grafana...");
-  console.log(`🍕 Pizzas sold so far: ${pizzaSoldCount}`);
-  console.log(`💵 Total revenue so far: $${pizzaRevenue.toFixed(2)}`);
-  console.log(`⚠️ Pizza creation failures: ${pizzaFailures}`);
+  // console.log("Pushing metrics to Grafana...");
+  // console.log(`🍕 Pizzas sold so far: ${pizzaSoldCount}`);
+  // console.log(`💵 Total revenue so far: $${pizzaRevenue.toFixed(2)}`);
+  // console.log(`⚠️ Pizza creation failures: ${pizzaFailures}`);
 
   // Active users
   sendMetricToGrafana(
