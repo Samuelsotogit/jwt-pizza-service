@@ -1,5 +1,6 @@
 {
   "collectCoverage": true,
   "coverageReporters": ["json-summary", "text"],
-  "testEnvironment": "node"
+  "testEnvironment": "node",
+  "testPathIgnorePatterns": ["./src/metrics.js"]
 }

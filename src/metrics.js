@@ -175,7 +175,7 @@ function sendMetricToGrafana(
 }
 
 // --- Periodically push metrics ---
-setInterval(async () => {
+setInterval(() => {
   // console.log("Pushing metrics to Grafana...");
   // console.log(`🍕 Pizzas sold so far: ${pizzaSoldCount}`);
   // console.log(`💵 Total revenue so far: $${pizzaRevenue.toFixed(2)}`);
@@ -208,7 +208,7 @@ setInterval(async () => {
   sendMetricToGrafana("auth_failure_total", authFailureCount, "sum", "1");
 
   // System metrics
-  const cpuPercent = await getCpuUsagePercentage();
+  const cpuPercent = getCpuUsagePercentage();
   sendMetricToGrafana("cpu_usage_percent", cpuPercent, "gauge", "%");
   sendMetricToGrafana(
     "memory_usage_percent",
@@ -226,7 +226,12 @@ setInterval(async () => {
   }
 
   sendMetricToGrafana("pizzas_sold_total", pizzaSoldCount, "sum", "1");
-  sendMetricToGrafana("pizza_revenue_total", pizzaRevenue * 100, "gauge", "USD");
+  sendMetricToGrafana(
+    "pizza_revenue_total",
+    pizzaRevenue * 100,
+    "gauge",
+    "USD"
+  );
   sendMetricToGrafana("pizza_creation_failures", pizzaFailures, "sum", "1");
 }, 1000); // every 1 second
 
