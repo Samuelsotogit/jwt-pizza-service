@@ -7,11 +7,15 @@ const version = require("./version.json");
 const config = require("./config.js");
 // Import metrics module
 const metrics = require("./metrics.js");
+// Use third party middleware
+const logger = require("./logger.js");
 
 const app = express();
 app.use(express.json());
 // Attach user authentication
 app.use(setAuthUser);
+// Attach logging middleware
+app.use(logger.httpLogger);
 // Attach active users middleware
 app.use(metrics.activeUserTracker);
 // Attach metrics middleware early so it tracks *all* requests
@@ -62,6 +66,11 @@ app.use("*", (req, res) => {
 
 // Default error handler for all exceptions and errors.
 app.use((err, req, res, next) => {
+  try {
+    logger.unhandledErrorLogger(err);
+  } catch (e) {
+    console.error("logger failed:", e);
+  }
   res
     .status(err.statusCode ?? 500)
     .json({ message: err.message, stack: err.stack });

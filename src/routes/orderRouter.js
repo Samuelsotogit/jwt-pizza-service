@@ -6,6 +6,7 @@ const { asyncHandler, StatusCodeError } = require("../endpointHelper.js");
 
 const orderRouter = express.Router();
 const metrics = require("../metrics");
+const logger = require("../logger.js");
 
 orderRouter.docs = [
   {
@@ -116,7 +117,12 @@ orderRouter.post(
   asyncHandler(async (req, res) => {
     const start = Date.now();
     const orderReq = req.body;
-
+    // Log the order request body
+    try {
+      logger.factoryLogger(orderReq);
+    } catch (e) {
+      console.error("logger failed while logging order request:", e);
+    }
     try {
       const order = await DB.addDinerOrder(req.user, orderReq);
       const r = await fetch(`${config.factory.url}/api/order`, {
@@ -134,6 +140,12 @@ orderRouter.post(
           order,
         }),
       });
+      // log response from factory
+      try {
+        logger.factoryLogger(r.body);
+      } catch (e) {
+        console.error("logger failed while logging factory response:", e);
+      }
       const j = await r.json();
 
       const latency = Date.now() - start;
