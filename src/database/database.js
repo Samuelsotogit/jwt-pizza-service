@@ -220,25 +220,101 @@ class DB {
     }
   }
 
-  async updateUser(userId, name, email, password) {
+  async updateUser(userId, { name, email, password }) {
     const connection = await this.getConnection();
     try {
-      const params = [];
+      const updates = [];
+      const values = [];
+
       if (password) {
         const hashedPassword = await bcrypt.hash(password, 10);
-        params.push(`password='${hashedPassword}'`);
+        updates.push("password=?");
+        values.push(hashedPassword);
       }
       if (email) {
-        params.push(`email='${email}'`);
+        updates.push("email=?");
+        values.push(email);
       }
       if (name) {
-        params.push(`name='${name}'`);
+        updates.push("name=?");
+        values.push(name);
       }
-      if (params.length > 0) {
-        const query = `UPDATE user SET ${params.join(", ")} WHERE id=${userId}`;
-        await this.query(connection, query);
+
+      if (updates.length > 0) {
+        const query = `UPDATE user SET ${updates.join(", ")} WHERE id=?`;
+        values.push(userId);
+        await this.query(connection, query, values);
       }
-      return this.getUser(email, password);
+
+      return this.getUserById(userId);
+    } finally {
+      connection.end();
+    }
+  }
+
+  async updateUserRoles(userId, roles) {
+    const connection = await this.getConnection();
+    try {
+      await connection.beginTransaction();
+      try {
+        // Delete existing roles
+        await this.query(connection, `DELETE FROM userRole WHERE userId=?`, [
+          userId,
+        ]);
+
+        // Insert new roles
+        for (const role of roles) {
+          let objectId = 0;
+          if (role.role === Role.Franchisee && role.objectId) {
+            objectId = role.objectId;
+          }
+
+          await this.query(
+            connection,
+            `INSERT INTO userRole (userId, role, objectId) VALUES (?, ?, ?)`,
+            [userId, role.role, objectId]
+          );
+        }
+
+        await connection.commit();
+
+        // Return the updated user with roles
+        return await this.getUserById(userId);
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      }
+    } finally {
+      connection.end();
+    }
+  }
+
+  // Helper to fetch user by id (include roles)
+  async getUserById(userId) {
+    const connection = await this.getConnection();
+    try {
+      const userResult = await this.query(
+        connection,
+        `SELECT id, name, email FROM user WHERE id=?`,
+        [userId]
+      );
+      if (userResult.length === 0) {
+        throw new Error("User not found");
+      }
+      const user = userResult[0];
+
+      const roleResult = await this.query(
+        connection,
+        `SELECT role, objectId FROM userRole WHERE userId=?`,
+        [userId]
+      );
+
+      user.roles = roleResult.map((r) => ({
+        objectId: r.objectId || undefined,
+        role: r.role,
+      }));
+
+      return user;
     } finally {
       connection.end();
     }
@@ -505,7 +581,7 @@ class DB {
   }
 
   getOffset(currentPage = 1, listPerPage) {
-    return (currentPage - 1) * [listPerPage];
+    return (currentPage - 1) * listPerPage;
   }
 
   getTokenSignature(token) {
@@ -586,7 +662,7 @@ class DB {
             password: "admin",
             roles: [{ role: Role.Admin }],
           };
-          this.addUser(defaultAdmin);
+          await this.addUser(defaultAdmin);
         }
       } finally {
         connection.end();
