@@ -60,21 +60,6 @@ userRouter.docs = [
     example: `curl -X DELETE localhost:3000/api/user/1 -H 'Authorization: Bearer tttttt'`,
     response: "204 No Content",
   },
-  {
-    method: "PUT",
-    path: "/api/user/:userId/role",
-    requiresAuth: true,
-    description: "Admin: Update user roles",
-    example: `curl -X PUT localhost:3000/api/user/2/role -d '{"roles":["admin"]}' -H 'Content-Type: application/json' -H 'Authorization: Bearer tttttt'`,
-    response: {
-      message: "Roles updated successfully",
-      user: {
-        id: 2,
-        name: "User",
-        roles: [{ role: "admin" }],
-      },
-    },
-  },
 ];
 
 // getUser
@@ -98,19 +83,7 @@ userRouter.put(
       return res.status(403).json({ message: "unauthorized" });
     }
 
-    const updateData = {};
-
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (password) updateData.password = password;
-
-    if ("roles" in req.body || "role" in req.body) {
-      return res
-        .status(400)
-        .json({ message: "Roles cannot be modified through this endpoint" });
-    }
-
-    const updatedUser = await DB.updateUser(userId, updateData);
+    const updatedUser = await DB.updateUser(userId, name, email, password);
     const auth = await setAuth(updatedUser);
     res.json({ user: updatedUser, token: auth });
   })
@@ -166,52 +139,6 @@ userRouter.delete(
 
     await DB.deleteUser(userId);
     res.status(204).send(); // 204 No Content - successful deletion, no body
-  })
-);
-
-// escalateRole
-userRouter.put(
-  "/:userId/role",
-  authRouter.authenticateToken,
-  asyncHandler(async (req, res) => {
-    const userId = Number(req.params.userId);
-    const { roles } = req.body; // should be an array of roles
-    const user = req.user;
-
-    // 1. Only admins can change roles
-    if (!user.isRole(Role.Admin)) {
-      return res.status(403).json({ message: "unauthorized" });
-    }
-
-    // 2. Admin cannot modify their own roles
-    if (user.id === userId) {
-      return res
-        .status(400)
-        .json({ message: "Admins cannot modify their own roles" });
-    }
-
-    // 3. Validate roles format
-    if (!Array.isArray(roles) || roles.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Roles must be a non-empty array" });
-    }
-
-    // 4. Validate each role exists in your Role enum
-    for (const r of roles) {
-      if (!Object.values(Role).includes(r)) {
-        return res.status(400).json({ message: `Invalid role: ${r}` });
-      }
-    }
-
-    // 5. Database method to update roles
-    const roleObjects = roles.map((r) => ({ role: r, objectId: 0 }));
-    const updatedUser = await DB.updateUserRoles(userId, roleObjects);
-
-    res.json({
-      message: "Roles updated successfully",
-      user: updatedUser,
-    });
   })
 );
 
