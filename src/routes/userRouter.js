@@ -94,24 +94,26 @@ userRouter.put(
     const { name, email, password } = req.body;
     const userId = Number(req.params.userId);
     const user = req.user;
+
+    // Only the user themselves or admins can edit this user
     if (user.id !== userId && !user.isRole(Role.Admin)) {
       return res.status(403).json({ message: "unauthorized" });
     }
 
+    // Prepare data to update
     const updateData = {};
-
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (password) updateData.password = password;
 
+    // Ignore any roles in the body — they are not allowed here
     if ("roles" in req.body || "role" in req.body) {
-      return res
-        .status(400)
-        .json({ message: "Roles cannot be modified through this endpoint" });
+      console.log(`Ignoring role update attempt by user ${user.id}`);
     }
 
     const updatedUser = await DB.updateUser(userId, updateData);
     const auth = await setAuth(updatedUser);
+
     res.json({ user: updatedUser, token: auth });
   })
 );
